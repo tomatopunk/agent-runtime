@@ -33,10 +33,21 @@ func (b *Backend) Run(ctx context.Context, opts backend.RunOptions) error {
 	if opts.PluginID == "" || opts.WorkDir == "" || opts.Config == "" {
 		return fmt.Errorf("plugin_id, work_dir and config are required")
 	}
-	// Config is used as the executable path here
+
 	cmd := exec.CommandContext(ctx, opts.Config)
 	cmd.Dir = opts.WorkDir
-	cmd.Env = append(os.Environ(), opts.Env...)
+	// Inherit host env, inject runtime env (binary has no fs isolation so HOST_DIR=/), then add opts.Env
+	cmd.Env = make([]string, 0, len(os.Environ())+6+len(opts.Env))
+	cmd.Env = append(cmd.Env, os.Environ()...)
+	cmd.Env = append(cmd.Env,
+		"PLUGIN_ID="+opts.PluginID,
+		"PLUGIN_VERSION="+opts.PluginVersion,
+		"DEVICE_ID="+opts.DeviceId,
+		"HOST_TYPE="+opts.HostType,
+		"HOST_NAME="+opts.HostName,
+		"HOST_DIR=/", // binary does not isolate fs
+	)
+	cmd.Env = append(cmd.Env, opts.Env...)
 	logPath := b.logPath(opts.PluginID)
 	if err := os.MkdirAll(filepath.Dir(logPath), 0755); err != nil {
 		return err

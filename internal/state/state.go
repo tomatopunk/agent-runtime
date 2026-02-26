@@ -10,21 +10,25 @@ import (
 
 const (
 	StopRequestedFile = "stop_requested"
-	MetaFile         = "meta.json"
-	PidFile          = "pid"
+	MetaFile          = "meta.json"
+	PidFile           = "pid"
 )
 
 // Meta is the metadata for each plugin under the state dir.
 type Meta struct {
-	PluginID   string   `json:"plugin_id"`
-	Backend    string   `json:"backend"`
-	RootDir    string   `json:"root_dir"`
-	WorkDir    string   `json:"work_dir"`
-	Config     string   `json:"config"`
-	CPU        string   `json:"cpu"`
-	Mem        string   `json:"mem"`
-	Env        []string `json:"env,omitempty"`
-	RuntimePid int      `json:"runtime_pid"` // pid of the runtime process that monitors this plugin
+	PluginID      string   `json:"plugin_id"`
+	PluginVersion string   `json:"plugin_version,omitempty"`
+	DeviceId      string   `json:"device_id,omitempty"`
+	HostType      string   `json:"host_type,omitempty"`
+	HostName      string   `json:"host_name,omitempty"`
+	Backend       string   `json:"backend"`
+	RootDir       string   `json:"root_dir"`
+	WorkDir       string   `json:"work_dir"`
+	Config        string   `json:"config"`
+	CPU           string   `json:"cpu"`
+	Mem           string   `json:"mem"`
+	Env           []string `json:"env,omitempty"`
+	RuntimePid    int      `json:"runtime_pid"` // pid of the runtime process that monitors this plugin
 }
 
 // Manager manages the state dir: registration, stop requests, enumeration.

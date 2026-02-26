@@ -24,13 +24,17 @@ type Backend interface {
 
 // RunOptions are the options for starting a plugin.
 type RunOptions struct {
-	PluginID string
-	RootDir  string // runtime root dir
-	WorkDir  string // for binary: work dir; for runc: bundle path
-	Config   string // config path (e.g. executable path for binary)
-	CPU      string // cgroup CPU quota, e.g. "0.5"
-	Mem      string // cgroup memory quota, e.g. "128m"
-	Env      []string
+	PluginID      string   // injected as PLUGIN_ID env (binary + runc)
+	PluginVersion string   // injected as PLUGIN_VERSION env
+	DeviceId      string   // injected as DEVICE_ID env
+	HostType      string   // injected as HOST_TYPE env
+	HostName      string   // injected as HOST_NAME env
+	RootDir       string   // runtime root dir
+	WorkDir       string   // for binary: work dir; for runc: bundle path
+	Config        string   // config path (e.g. executable path for binary)
+	CPU           string   // cgroup CPU quota, e.g. "0.5"
+	Mem           string   // cgroup memory quota, e.g. "128m"
+	Env           []string // extra KEY=VALUE env (in addition to injected vars)
 }
 
 // InstanceInfo is a plugin summary for list output.

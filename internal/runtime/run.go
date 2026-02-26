@@ -23,15 +23,19 @@ func (r *Runtime) Run(ctx context.Context, backendName string, opts backend.RunO
 		return err
 	}
 	meta := state.Meta{
-		PluginID:   opts.PluginID,
-		Backend:    backendName,
-		RootDir:    r.rootDir,
-		WorkDir:    opts.WorkDir,
-		Config:     opts.Config,
-		CPU:        opts.CPU,
-		Mem:        opts.Mem,
-		Env:        opts.Env,
-		RuntimePid: os.Getpid(),
+		PluginID:      opts.PluginID,
+		PluginVersion: opts.PluginVersion,
+		DeviceId:      opts.DeviceId,
+		HostType:      opts.HostType,
+		HostName:      opts.HostName,
+		Backend:       backendName,
+		RootDir:       r.rootDir,
+		WorkDir:       opts.WorkDir,
+		Config:        opts.Config,
+		CPU:           opts.CPU,
+		Mem:           opts.Mem,
+		Env:           opts.Env,
+		RuntimePid:    os.Getpid(),
 	}
 	if err := r.state.Register(meta); err != nil {
 		return err

@@ -1,10 +1,10 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 )
 
 var rootCmd = &cobra.Command{
@@ -22,7 +22,7 @@ func init() {
 func mustRoot(cmd *cobra.Command) string {
 	root, err := cmd.Root().PersistentFlags().GetString("root")
 	if err != nil || root == "" {
-		fmt.Fprintln(os.Stderr, "must specify --root")
+		zap.L().Error("must specify --root")
 		os.Exit(2)
 	}
 	return root

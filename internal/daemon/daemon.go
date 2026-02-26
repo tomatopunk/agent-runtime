@@ -39,13 +39,17 @@ func Monitor(
 				continue
 			}
 			opts := backend.RunOptions{
-				PluginID: meta.PluginID,
-				RootDir:  meta.RootDir,
-				WorkDir:  meta.WorkDir,
-				Config:   meta.Config,
-				CPU:      meta.CPU,
-				Mem:      meta.Mem,
-				Env:      meta.Env,
+				PluginID:      meta.PluginID,
+				PluginVersion: meta.PluginVersion,
+				DeviceId:      meta.DeviceId,
+				HostType:      meta.HostType,
+				HostName:      meta.HostName,
+				RootDir:       meta.RootDir,
+				WorkDir:       meta.WorkDir,
+				Config:        meta.Config,
+				CPU:           meta.CPU,
+				Mem:           meta.Mem,
+				Env:           meta.Env,
 			}
 			_ = be.Run(ctx, opts)
 		}

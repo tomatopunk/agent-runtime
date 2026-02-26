@@ -27,15 +27,18 @@ type Backend struct {
 	state    *state.Manager
 	runcPath string
 	mu       sync.Mutex
-	// container id -> cancel for runs started by this process
-	cancels map[string]context.CancelFunc
+	cancels  map[string]context.CancelFunc
 }
 
 func New(stateManager *state.Manager, runcPath string) *Backend {
 	if runcPath == "" {
 		runcPath = "runc"
 	}
-	return &Backend{state: stateManager, runcPath: runcPath, cancels: make(map[string]context.CancelFunc)}
+	return &Backend{
+		state:    stateManager,
+		runcPath: runcPath,
+		cancels:  make(map[string]context.CancelFunc),
+	}
 }
 
 func (b *Backend) Run(ctx context.Context, opts backend.RunOptions) error {
@@ -43,6 +46,12 @@ func (b *Backend) Run(ctx context.Context, opts backend.RunOptions) error {
 	defer b.mu.Unlock()
 	if opts.PluginID == "" || opts.WorkDir == "" {
 		return fmt.Errorf("plugin_id and work_dir (bundle path) are required")
+	}
+	if err := os.MkdirAll(opts.WorkDir, 0755); err != nil {
+		return err
+	}
+	if err := writeConfigJSON(opts.WorkDir, opts); err != nil {
+		return err
 	}
 	logPath := b.logPath(opts.PluginID)
 	if err := os.MkdirAll(filepath.Dir(logPath), 0755); err != nil {
@@ -52,20 +61,15 @@ func (b *Backend) Run(ctx context.Context, opts backend.RunOptions) error {
 	if err != nil {
 		return err
 	}
-	// Run runc run in a goroutine without --detach; write container stdout/stderr to unified log
 	cmd := exec.CommandContext(ctx, b.runcPath, "run", opts.PluginID)
 	cmd.Dir = opts.WorkDir
-	cmd.Env = opts.Env
-	if len(cmd.Env) == 0 {
-		cmd.Env = os.Environ()
-	}
+	cmd.Env = os.Environ()
 	cmd.Stdout = logFile
 	cmd.Stderr = logFile
 	go func() {
 		defer logFile.Close()
 		_ = cmd.Run()
 	}()
-	// Wait for runc to start before returning so daemon's first check does not think it is stopped
 	time.Sleep(500 * time.Millisecond)
 	return nil
 }
@@ -141,11 +145,11 @@ func (b *Backend) List(ctx context.Context) ([]backend.InstanceInfo, error) {
 			status = "running"
 		}
 		out = append(out, backend.InstanceInfo{
-			PluginID:  id,
-			Backend:   backend.BackendRunc,
-			Status:    status,
-			Pid:       rs.Pid,
-			WorkDir:   meta.WorkDir,
+			PluginID: id,
+			Backend:  backend.BackendRunc,
+			Status:   status,
+			Pid:      rs.Pid,
+			WorkDir:  meta.WorkDir,
 		})
 	}
 	return out, nil
@@ -173,11 +177,11 @@ func (b *Backend) State(ctx context.Context, pluginID string) (*backend.StateInf
 		status = "running"
 	}
 	return &backend.StateInfo{
-		PluginID:  pluginID,
-		Backend:   backend.BackendRunc,
-		Status:    status,
-		Pid:       rs.Pid,
-		WorkDir:   meta.WorkDir,
+		PluginID: pluginID,
+		Backend:  backend.BackendRunc,
+		Status:   status,
+		Pid:      rs.Pid,
+		WorkDir:  meta.WorkDir,
 	}, nil
 }
 
