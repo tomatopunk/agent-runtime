@@ -7,9 +7,12 @@ import (
 )
 
 // Backend is the runtime backend interface implemented by binary and runc.
+// It wraps the executable (like containerd-shim); executables are assumed to be long-running, lifecycle is managed by the caller.
 type Backend interface {
-	// Run starts the plugin; the caller is responsible for daemon monitoring.
+	// Run starts the plugin and returns immediately; the process/container keeps running.
 	Run(ctx context.Context, opts RunOptions) error
+	// Wait blocks until the plugin process/container exits or ctx is cancelled. Used by the re-exec'd shim process.
+	Wait(ctx context.Context, pluginID string) error
 	// Stop stops the plugin (does not remove work dir).
 	Stop(ctx context.Context, pluginID string) error
 	// Delete stops the plugin and removes the work dir.
@@ -30,11 +33,14 @@ type RunOptions struct {
 	HostType      string   // injected as HOST_TYPE env
 	HostName      string   // injected as HOST_NAME env
 	RootDir       string   // runtime root dir
-	WorkDir       string   // for binary: work dir; for runc: bundle path
-	Config        string   // config path (e.g. executable path for binary)
-	CPU           string   // cgroup CPU quota, e.g. "0.5"
-	Mem           string   // cgroup memory quota, e.g. "128m"
-	Env           []string // extra KEY=VALUE env (in addition to injected vars)
+	WorkDir       string   // for binary: work dir (cwd); for runc: bundle path
+	// Executable: host path to the binary to run. Binary backend runs it directly;
+	// runc backend copies it into bundle rootfs and runs it inside the container.
+	Executable string   // required
+	Args       []string // optional args: binary = append to launch command; runc = args inside container
+	CPU        string   // cgroup CPU quota, e.g. "0.5"
+	Mem        string   // cgroup memory quota, e.g. "128m"
+	Env        []string // extra KEY=VALUE env (in addition to injected vars)
 }
 
 // InstanceInfo is a plugin summary for list output.

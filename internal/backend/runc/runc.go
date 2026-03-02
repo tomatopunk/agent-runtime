@@ -16,6 +16,39 @@ import (
 	"github.com/tomatopunk/agent-runtime/internal/state"
 )
 
+// copyExecutableToRootfs copies the host binary into bundle rootfs so runc can run it inside the container.
+func copyExecutableToRootfs(workDir, hostExecutable string) error {
+	src, err := os.Open(hostExecutable)
+	if err != nil {
+		return fmt.Errorf("open executable %s: %w", hostExecutable, err)
+	}
+	defer src.Close()
+	info, err := src.Stat()
+	if err != nil {
+		return err
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("executable %s is not a regular file", hostExecutable)
+	}
+	// rootfs/app/plugin
+	destDir := filepath.Join(workDir, "rootfs", "app")
+	if err := os.MkdirAll(destDir, 0755); err != nil {
+		return err
+	}
+	destPath := filepath.Join(destDir, "plugin")
+	dest, err := os.OpenFile(destPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755)
+	if err != nil {
+		return err
+	}
+	_, err = io.Copy(dest, src)
+	dest.Close()
+	if err != nil {
+		os.Remove(destPath)
+		return err
+	}
+	return nil
+}
+
 // runcState is (partial) output of runc state
 type runcState struct {
 	Pid    int    `json:"pid"`
@@ -41,13 +74,23 @@ func New(stateManager *state.Manager, runcPath string) *Backend {
 	}
 }
 
+// Path inside container where the executable is copied (under rootfs).
+const inContainerExePath = "/app/plugin"
+
 func (b *Backend) Run(ctx context.Context, opts backend.RunOptions) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if opts.PluginID == "" || opts.WorkDir == "" {
 		return fmt.Errorf("plugin_id and work_dir (bundle path) are required")
 	}
+	if opts.Executable == "" {
+		return fmt.Errorf("executable (host path to binary) is required for runc")
+	}
 	if err := os.MkdirAll(opts.WorkDir, 0755); err != nil {
+		return err
+	}
+	// Copy host executable into bundle rootfs so container can run it
+	if err := copyExecutableToRootfs(opts.WorkDir, opts.Executable); err != nil {
 		return err
 	}
 	if err := writeConfigJSON(opts.WorkDir, opts); err != nil {
@@ -203,14 +246,19 @@ func (b *Backend) UnregisterCancel(pluginID string) {
 	delete(b.cancels, pluginID)
 }
 
-// WaitUntilStopped polls runc state until the container is not running (for daemon restart).
-func (b *Backend) WaitUntilStopped(pluginID string, interval time.Duration) {
-	ticker := time.NewTicker(interval)
+// Wait blocks until the container exits or ctx is cancelled (used by re-exec'd shim).
+func (b *Backend) Wait(ctx context.Context, pluginID string) error {
+	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
-	for range ticker.C {
-		rs, err := b.getRuncState(pluginID)
-		if err != nil || rs.Status == "" || strings.ToLower(rs.Status) == "stopped" {
-			return
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+			rs, err := b.getRuncState(pluginID)
+			if err != nil || rs.Status == "" || strings.ToLower(rs.Status) == "stopped" {
+				return nil
+			}
 		}
 	}
 }

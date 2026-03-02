@@ -24,7 +24,8 @@ type Meta struct {
 	Backend       string   `json:"backend"`
 	RootDir       string   `json:"root_dir"`
 	WorkDir       string   `json:"work_dir"`
-	Config        string   `json:"config"`
+	Executable    string   `json:"executable"` // host path to binary
+	Args          []string `json:"args,omitempty"`
 	CPU           string   `json:"cpu"`
 	Mem           string   `json:"mem"`
 	Env           []string `json:"env,omitempty"`

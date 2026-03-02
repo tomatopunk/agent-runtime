@@ -11,7 +11,7 @@ var rootCmd = &cobra.Command{
 	Use:   "deviceagent-runtime",
 	Short: "Unified runtime CLI with binary and runc backends",
 	Long: `Agent invokes this binary only; it does not call runc directly.
-This runtime provides daemon keep-alive, unified logs, and list/state semantics.`,
+This runtime provides unified logs and list/state semantics; daemon/restart is implemented by the caller.`,
 }
 
 func init() {

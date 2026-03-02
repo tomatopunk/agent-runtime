@@ -5,15 +5,12 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/tomatopunk/agent-runtime/internal/backend"
-	"github.com/tomatopunk/agent-runtime/internal/backend/binary"
-	"github.com/tomatopunk/agent-runtime/internal/daemon"
 	"github.com/tomatopunk/agent-runtime/internal/state"
 )
 
-// Run starts the plugin and enters daemon monitoring (restart on crash) until stop or signal.
+// Run starts the plugin and returns immediately; lifecycle is managed by the caller (e.g. stop via separate CLI or upper layer).
 func (r *Runtime) Run(ctx context.Context, backendName string, opts backend.RunOptions) error {
 	if err := r.state.EnsureStateDir(); err != nil {
 		return err
@@ -31,7 +28,8 @@ func (r *Runtime) Run(ctx context.Context, backendName string, opts backend.RunO
 		Backend:       backendName,
 		RootDir:       r.rootDir,
 		WorkDir:       opts.WorkDir,
-		Config:        opts.Config,
+		Executable:    opts.Executable,
+		Args:          opts.Args,
 		CPU:           opts.CPU,
 		Mem:           opts.Mem,
 		Env:           opts.Env,
@@ -40,10 +38,15 @@ func (r *Runtime) Run(ctx context.Context, backendName string, opts backend.RunO
 	if err := r.state.Register(meta); err != nil {
 		return err
 	}
-	if err := be.Run(ctx, opts); err != nil {
-		_ = r.state.Remove(opts.PluginID)
+	return be.Run(ctx, opts)
+}
+
+// RunAndWait starts the plugin and blocks until it exits or SIGTERM/SIGINT (used by the re-exec'd shim; keeps plugin as child, no orphan).
+func (r *Runtime) RunAndWait(ctx context.Context, backendName string, opts backend.RunOptions) error {
+	if err := r.Run(ctx, backendName, opts); err != nil {
 		return err
 	}
+	be, _ := r.backendForName(backendName)
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
 	ctx, cancel := context.WithCancel(ctx)
@@ -53,9 +56,5 @@ func (r *Runtime) Run(ctx context.Context, backendName string, opts backend.RunO
 		_ = be.Stop(ctx, opts.PluginID)
 		cancel()
 	}()
-	daemon.Monitor(ctx, opts.PluginID, r.state, be, 3*time.Second)
-	if b, ok := be.(*binary.Backend); ok {
-		b.UnregisterRunning(opts.PluginID)
-	}
-	return nil
+	return be.Wait(ctx, opts.PluginID)
 }

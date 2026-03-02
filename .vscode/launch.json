@@ -1,0 +1,93 @@
+{
+  "version": "0.2.0",
+  "inputs": [
+    {
+      "id": "executablePath",
+      "type": "promptString",
+      "description": "Path to the test executable (--executable)",
+      "default": "${workspaceFolder}/test/loop-test.sh"
+    }
+  ],
+  "configurations": [
+    {
+      "name": "Attach to Process",
+      "type": "go",
+      "request": "attach",
+      "mode": "local",
+      "processId": 0
+    },
+    {
+      "name": "Run Binary (debug)",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "${workspaceFolder}/cmd/deviceagent-runtime",
+      "args": [
+        "run",
+        "-r", "${workspaceFolder}/.tmp/agent-runtime-test",
+        "--plugin-id", "test-binary",
+        "--backend", "binary",
+        "--work-dir", "${workspaceFolder}/.tmp/agent-runtime-test/work",
+        "--executable", "${workspaceFolder}/test/loop-test.sh",
+        "--plugin-version", "1.0",
+        "--device-id", "dev-001",
+        "--host-type", "linux",
+        "--host-name", "node1"
+      ],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "List (debug)",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "${workspaceFolder}/cmd/deviceagent-runtime",
+      "args": [
+        "list",
+        "-r", "${workspaceFolder}/.tmp/agent-runtime-test",
+        "--format", "json"
+      ],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "State (debug)",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "${workspaceFolder}/cmd/deviceagent-runtime",
+      "args": [
+        "state",
+        "-r", "${workspaceFolder}/.tmp/agent-runtime-test",
+        "--plugin-id", "test-binary",
+        "--format", "json"
+      ],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Log (debug)",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "${workspaceFolder}/cmd/deviceagent-runtime",
+      "args": [
+        "log",
+        "-r", "${workspaceFolder}/.tmp/agent-runtime-test",
+        "--plugin-id", "test-binary"
+      ],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Stop Binary (debug)",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "${workspaceFolder}/cmd/deviceagent-runtime",
+      "args": [
+        "stop",
+        "-r", "${workspaceFolder}/.tmp/agent-runtime-test",
+        "--plugin-id", "test-binary"
+      ],
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}

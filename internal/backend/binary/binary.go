@@ -30,11 +30,11 @@ func New(stateManager *state.Manager) *Backend {
 func (b *Backend) Run(ctx context.Context, opts backend.RunOptions) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if opts.PluginID == "" || opts.WorkDir == "" || opts.Config == "" {
-		return fmt.Errorf("plugin_id, work_dir and config are required")
+	if opts.PluginID == "" || opts.WorkDir == "" || opts.Executable == "" {
+		return fmt.Errorf("plugin_id, work_dir and executable are required")
 	}
-
-	cmd := exec.CommandContext(ctx, opts.Config)
+	// Build launch command: executable path + optional args
+	cmd := exec.CommandContext(ctx, opts.Executable, opts.Args...)
 	cmd.Dir = opts.WorkDir
 	// Inherit host env, inject runtime env (binary has no fs isolation so HOST_DIR=/), then add opts.Env
 	cmd.Env = make([]string, 0, len(os.Environ())+6+len(opts.Env))
@@ -69,6 +69,30 @@ func (b *Backend) Run(ctx context.Context, opts backend.RunOptions) error {
 	}
 	b.running[opts.PluginID] = cmd
 	return nil
+}
+
+// Wait blocks until the plugin process exits or ctx is cancelled (used by re-exec'd shim).
+func (b *Backend) Wait(ctx context.Context, pluginID string) error {
+	b.mu.Lock()
+	cmd, ok := b.running[pluginID]
+	b.mu.Unlock()
+	if !ok || cmd == nil {
+		return nil
+	}
+	done := make(chan struct{})
+	go func() {
+		_ = cmd.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+		b.mu.Lock()
+		delete(b.running, pluginID)
+		b.mu.Unlock()
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 func (b *Backend) logPath(pluginID string) string {
@@ -193,13 +217,6 @@ func (b *Backend) Log(ctx context.Context, pluginID string, opts backend.LogOpti
 	}
 	// Simple impl: read last N lines (can be improved with ring buffer later)
 	return f, nil
-}
-
-// UnregisterRunning removes the plugin from the local running map (when daemon exits).
-func (b *Backend) UnregisterRunning(pluginID string) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	delete(b.running, pluginID)
 }
 
 // IsRunning returns whether this process is managing the plugin.

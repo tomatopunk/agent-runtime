@@ -84,10 +84,11 @@ func writeConfigJSON(workDir string, opts backend.RunOptions) error {
 	if err != nil {
 		return fmt.Errorf("parse runc config template: %w", err)
 	}
-	buildArgs := []string{opts.Config}
-	if opts.Config == "" {
-		buildArgs = []string{"/bin/sh"}
-	}
+	// Process args: path inside container (after copy) + optional args
+	inContainerPath := "/app/plugin"
+	buildArgs := make([]string, 0, 1+len(opts.Args))
+	buildArgs = append(buildArgs, inContainerPath)
+	buildArgs = append(buildArgs, opts.Args...)
 	data := configData{
 		BuildArgs:     buildArgs,
 		HostType:      opts.HostType,
